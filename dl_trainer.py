@@ -26,7 +26,7 @@ import logging
 import utils
 import math
 #from tensorboardX import SummaryWriter
-from datasets import DatasetHDF5
+# from datasets import DatasetHDF5
 from profiling import benchmark
 #writer = SummaryWriter()
 
@@ -124,8 +124,10 @@ class DLTrainer:
 
     def __init__(self, rank, size, master='gpu10', dist=True, ngpus=1, batch_size=32, 
         is_weak_scaling=True, data_dir='./data', dataset='cifar10', dnn='resnet20', 
-        lr=0.04, nworkers=1, prefix=None, sparsity=0.95, pretrain=None, num_steps=35, tb_writer=None, amp_handle=None):
-
+        lr=0.04, nworkers=1, prefix=None, sparsity=0.95, pretrain=None, num_steps=35, tb_writer=None,
+        tracking=None, amp_handle=None):
+        assert tracking, print("Where is mah timer")
+        self.tracking = tracking
         self.size = size
         self.rank = rank
         self.pretrain = pretrain
@@ -294,23 +296,30 @@ class DLTrainer:
 
     def imagenet_prepare(self):
         # Data loading code
-        traindir = os.path.join(self.data_dir, 'train')
-        testdir = os.path.join(self.data_dir, 'val')
+        # traindir = os.path.join(self.data_dir, 'train')
+        # testdir = os.path.join(self.data_dir, 'val')
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                          std=[0.229, 0.224, 0.225])
 
         image_size = 224
         self._input_shape = (self.batch_size, 3, image_size, image_size)
         self._output_shape = (self.batch_size, 1000)
-        hdf5fn = os.path.join(self.data_dir, 'imagenet-shuffled.hdf5')
-        #trainset = torchvision.datasets.ImageFolder(traindir, transforms.Compose([
-        trainset = DatasetHDF5(hdf5fn, 'train', transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.RandomResizedCrop(image_size),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-            ]))
+        # hdf5fn = os.path.join(self.data_dir, 'imagenet-shuffled.hdf5')
+        # trainset = DatasetHDF5(hdf5fn, 'train', transforms.Compose([
+
+        transform = transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                        ])
+        trainset = torchvision.datasets.ImageNet(
+            root="/groups2/gaa50004/data/ILSVRC2012/pytorch",
+            split='train',
+            transform=transforms.Compose([
+                        transforms.RandomResizedCrop(224, scale=(0.08, 1.0)),
+                        transforms.RandomHorizontalFlip(),
+                        transform,
+                        ])
+            )
         self.trainset = trainset
 
         train_sampler = None
@@ -326,14 +335,16 @@ class DLTrainer:
             trainset,
             batch_size=self.batch_size, shuffle=shuffle,
             num_workers=NUM_CPU_THREADS, pin_memory=True, sampler=train_sampler)
-        #testset = torchvision.datasets.ImageFolder(testdir, transforms.Compose([
-        testset = DatasetHDF5(hdf5fn, 'val', transforms.Compose([
-                transforms.ToPILImage(),
-                transforms.Scale(256),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                normalize,
-            ]))
+        # testset = DatasetHDF5(hdf5fn, 'val', transforms.Compose([
+        testset = torchvision.datasets.ImageNet(
+            root="/groups2/gaa50004/data/ILSVRC2012/pytorch",
+            split='val',
+            transform=transforms.Compose([
+                        transforms.Resize(256),
+                        transforms.CenterCrop(224),
+                        transform,
+                        ])
+        )
 
         self.testset = testset
         self.testloader = torch.utils.data.DataLoader(
@@ -613,12 +624,14 @@ class DLTrainer:
         with torch.no_grad():
             maxk = max(topk)
             batch_size = target.size(0)
-            _, pred = output.topk(maxk, 1, True, True)
+            _, pred = torch.topk(output, maxk, dim=1, largest=True, sorted=True)
             pred = pred.t()
-            correct = pred.eq(target.view(1, -1).expand_as(pred))
+            correct = pred.eq(target.reshape(1, -1).expand_as(pred))
             res = []
+            # print(correct.size())
             for k in topk:
-                correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+                correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
+                # correct_k = torch.rand(1)
                 res.append(correct_k.mul_(100.0 / batch_size))
             return res
 
@@ -628,6 +641,7 @@ class DLTrainer:
         # zero the parameter gradients
         #self.optimizer.zero_grad()
         for i in range(num_of_iters):
+            # self.train_iter = i
             self.adjust_learning_rate(self.train_epoch, self.optimizer)
             if self.train_iter % self.num_batches_per_epoch == 0 and self.train_iter > 0:
                 self.train_epoch += 1
@@ -683,33 +697,35 @@ class DLTrainer:
             self.iotime += (time.time() - ss)
             
             sforward = time.time()
-            if self.dnn == 'lstman4':
-                out, output_sizes = self.net(inputs, input_sizes)
-                out = out.transpose(0, 1)  # TxNxH
-                loss = self.criterion(out, labels_cpu, output_sizes, target_sizes)
-                #torch.cuda.synchronize()
-                self.forwardtime += (time.time() - sforward)
-                loss = loss / inputs.size(0)  # average the loss by minibatch
-            elif self.dnn == 'lstm' :
-                hidden = lstmpy.repackage_hidden(hidden)
-                outputs, hidden = self.net(inputs, hidden)
-                tt = torch.squeeze(labels.view(-1, self.net.batch_size * self.net.num_steps))
-                loss = self.criterion(outputs.view(-1, self.net.vocab_size), tt)
-                #torch.cuda.synchronize()
-                self.forwardtime += (time.time() - sforward)
-            else:
-                # forward + backward + optimize
-                outputs = self.net(inputs)
-                loss = self.criterion(outputs, labels)
-                #torch.cuda.synchronize()
-                self.forwardtime += (time.time() - sforward)
+            with self.tracking("Forward time"):
+                if self.dnn == 'lstman4':
+                    out, output_sizes = self.net(inputs, input_sizes)
+                    out = out.transpose(0, 1)  # TxNxH
+                    loss = self.criterion(out, labels_cpu, output_sizes, target_sizes)
+                    #torch.cuda.synchronize()
+                    self.forwardtime += (time.time() - sforward)
+                    loss = loss / inputs.size(0)  # average the loss by minibatch
+                elif self.dnn == 'lstm' :
+                    hidden = lstmpy.repackage_hidden(hidden)
+                    outputs, hidden = self.net(inputs, hidden)
+                    tt = torch.squeeze(labels.view(-1, self.net.batch_size * self.net.num_steps))
+                    loss = self.criterion(outputs.view(-1, self.net.vocab_size), tt)
+                    #torch.cuda.synchronize()
+                    self.forwardtime += (time.time() - sforward)
+                else:
+                    # forward + backward + optimize
+                    outputs = self.net(inputs)
+                    loss = self.criterion(outputs, labels)
+                    #torch.cuda.synchronize()
+                    self.forwardtime += (time.time() - sforward)
             sbackward = time.time()
-            if self.amp_handle is not None:
-                with apex.amp.scale_loss(loss, self.optimizer) as scaled_loss:
-                    scaled_loss.backward()
-                    loss = scaled_loss
-            else:
-                loss.backward()
+            with self.tracking("Backward time"):
+                if self.amp_handle is not None:
+                    with apex.amp.scale_loss(loss, self.optimizer) as scaled_loss:
+                        scaled_loss.backward()
+                        loss = scaled_loss
+                else:
+                    loss.backward()
             loss_value = loss.item()
             #torch.cuda.synchronize()
             self.backwardtime += (time.time() - sbackward)
@@ -728,8 +744,8 @@ class DLTrainer:
         self.timer += time.time() - s 
         display = 40
         if self.train_iter % display == 0:
-            logger.warn('[%3d][%5d/%5d][rank:%d] loss: %.3f, average forward (%f) and backward (%f) time: %f, iotime: %f ' %
-                  (self.train_epoch, self.train_iter, self.num_batches_per_epoch, self.rank,  self.loss, self.forwardtime/display, self.backwardtime/display, self.timer/display, self.iotime/display))
+            # logger.info('[%3d][%5d/%5d][rank:%d] loss: %.3f, average forward (%f) and backward (%f) time: %f, iotime: %f ' %
+            #       (self.train_epoch, self.train_iter, self.num_batches_per_epoch, self.rank,  self.loss, self.forwardtime/display, self.backwardtime/display, self.timer/display, self.iotime/display))
             self.timer = 0.0
             self.iotime = 0.0
             self.forwardtime = 0.0
@@ -803,7 +819,6 @@ class DLTrainer:
                 acc1, acc5 = self.cal_accuracy(outputs, labels, topk=(1, 5))
                 top1_acc.append(float(acc1))
                 top5_acc.append(float(acc5))
-
                 test_loss += loss.data.item()
             total += labels.size(0)
             total_iters += 1
@@ -819,12 +834,15 @@ class DLTrainer:
             acc = wer
             acc5 = 0.0
         loss = float(test_loss)/total
+        print(self.tracking.summary())
         logger.info('Epoch %d, lr: %f, val loss: %f, val top-1 acc: %f, top-5 acc: %f' % (epoch, self.lr, test_loss, acc, acc5))
         self.net.train()
         return acc
 
     def update_model(self):
-        self.optimizer.step()
+        with self.tracking("Optimizer step"):
+            self.optimizer.step()
+        # logger.info(f"[epoch: {self.train_epoch}][rank: {self.rank}] OPTIMIZER STEP: {time.time() - start}")
 
     def _get_original_params(self):
         own_state = self.net.state_dict()

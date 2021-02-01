@@ -140,7 +140,7 @@ class _DistributedOptimizer(torch.optim.Optimizer):
             size = np.sum(self._sizes)
             k = max(int(size * density), 1)
             logger.info('Average number of selected gradients: %f, exact k: %d', np.mean(self._selected_num_gradients), k)
-            logger.info('The number of selected gradients: %s', self._selected_num_gradients)
+            # logger.info('The number of selected gradients: %s', self._selected_num_gradients)
         self._selected_num_gradients = []
 
     def get_current_density(self, name=None):

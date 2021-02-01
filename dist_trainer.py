@@ -19,13 +19,15 @@ writer = None
 
 from settings import logger, formatter
 
+from timer import Timer
+tracking = Timer()
 
-def ssgd(dnn, dataset, data_dir, nworkers, lr, batch_size, nsteps_update, max_epochs, nwpernode, pretrain, num_steps, compressor, density, threshold, gradient_path=None):
+def ssgd(dnn, dataset, data_dir, nworkers, lr, batch_size, nsteps_update, max_epochs, nwpernode, pretrain, num_steps, compressor, density, threshold, gradient_path=None, timer=tracking):
     rank = hvd.rank()
     torch.cuda.set_device(rank%nwpernode)
     if rank != 0:
         pretrain = None
-    trainer = DLTrainer(rank, nworkers, dist=False, batch_size=batch_size, is_weak_scaling=True, ngpus=1, data_dir=data_dir, dataset=dataset, dnn=dnn, lr=lr, nworkers=nworkers, prefix='allreduce', pretrain=pretrain, num_steps=num_steps, tb_writer=writer)
+    trainer = DLTrainer(rank, nworkers, dist=False, batch_size=batch_size, is_weak_scaling=True, ngpus=1, data_dir=data_dir, dataset=dataset, dnn=dnn, lr=lr, nworkers=nworkers, prefix='allreduce', pretrain=pretrain, num_steps=num_steps, tb_writer=writer, tracking=tracking)
 
     init_epoch = torch.ones(1) * trainer.get_train_epoch()
     init_iter = torch.ones(1) * trainer.get_train_iter()
@@ -58,38 +60,33 @@ def ssgd(dnn, dataset, data_dir, nworkers, lr, batch_size, nsteps_update, max_ep
     trainer.update_optimizer(optimizer)
     iters_per_epoch = trainer.get_num_of_training_samples() // (nworkers * batch_size * nsteps_update)
 
-    times = []
+    
     logger.info('max_epochs: %d', max_epochs)
-    display = 40 if iters_per_epoch > 40 else iters_per_epoch-1
     for epoch in range(max_epochs):
         hidden = None
         if dnn == 'lstm':
             hidden = trainer.net.init_hidden()
         for i in range(iters_per_epoch):
-            s = time.time()
-            optimizer.zero_grad()
-            for j in range(nsteps_update):
-                if j < nsteps_update - 1 and nsteps_update > 1:
-                    optimizer.local = True
-                else:
-                    optimizer.local = False
+            with tracking("Iteration time"):
+                optimizer.zero_grad()
+                for j in range(nsteps_update):
+                    if j < nsteps_update - 1 and nsteps_update > 1:
+                        optimizer.local = True
+                    else:
+                        optimizer.local = False
+                    if dnn == 'lstm':
+                        _, hidden = trainer.train(1, hidden=hidden)
+                    else:
+                        trainer.train(1)
                 if dnn == 'lstm':
-                    _, hidden = trainer.train(1, hidden=hidden)
-                else:
-                    trainer.train(1)
-            if dnn == 'lstm':
-                optimizer.synchronize()
-                torch.nn.utils.clip_grad_norm_(trainer.net.parameters(), 0.25)
-            elif dnn == 'lstman4':
-                optimizer.synchronize()
-                torch.nn.utils.clip_grad_norm_(trainer.net.parameters(), 400)
-            trainer.update_model()
-            times.append(time.time()-s)
-            if i % display == 0 and i > 0: 
-                time_per_iter = np.mean(times)
-                logger.warn('Time per iteration including communication: %f, Speed: %f images/s', time_per_iter, batch_size * nsteps_update / time_per_iter)
-                times = []
+                    optimizer.synchronize()
+                    torch.nn.utils.clip_grad_norm_(trainer.net.parameters(), 0.25)
+                elif dnn == 'lstman4':
+                    optimizer.synchronize()
+                    torch.nn.utils.clip_grad_norm_(trainer.net.parameters(), 400)
+                trainer.update_model()
         optimizer.increase_one_epoch()
+    print(tracking.summary())
 
 
 if __name__ == '__main__':

@@ -7,13 +7,12 @@ import time
 import math
 import utils
 from scipy import stats
-
+from settings import logger
 
 class NoneCompressor():
     @staticmethod
-    def compress(tensor, name=None):
-        return tensor, tensor.dtype
-
+    def compress(tensor, name=None, ratio=0.05):
+        return tensor, None, None
     @staticmethod
     def decompress(tensor, ctc, name=None):
         z = tensor 
@@ -43,7 +42,8 @@ class TopKCompressor():
 
     @staticmethod
     def compress(tensor, name=None, sigma_scale=2.5, ratio=0.05):
-        start = time.time()
+        # with tracking("COMPRESSION TIME"):
+            # start = time.time()
         with torch.no_grad():
             if name not in TopKCompressor.residuals:
                 TopKCompressor.residuals[name] = torch.zeros_like(tensor.data)
@@ -60,6 +60,7 @@ class TopKCompressor():
 
             TopKCompressor.values[name] = values
             TopKCompressor.indexes[name] = indexes
+            # logger.info(f"COMPRESSION TIME: {-start + time.time()}")
             return tensor, indexes, values
 
     @staticmethod
