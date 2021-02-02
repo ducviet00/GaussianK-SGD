@@ -412,7 +412,7 @@ class _DistributedOptimizer(torch.optim.Optimizer):
     def _sparse_allreduce_async(self, p, name, density):
         stime = time.time()
         tensor = p.data.view(-1)
-        tensor_compressed, ctx, selected_values = self._compression.compress(tensor, name, ratio=density)
+        tensor_compressed, ctx, selected_values = self._compression.compress(tensor, name, ratio=density, rank=rank())
         self._selected_num_gradients.append(int(ctx.numel()))
 
         if settings.LOGGING_GRADIENTS and rank() == 0:

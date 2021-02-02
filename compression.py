@@ -8,6 +8,7 @@ import math
 import utils
 from scipy import stats
 from settings import logger
+from horovod.torch.mpi_ops import rank
 
 class NoneCompressor():
     @staticmethod
@@ -31,7 +32,8 @@ class TopKCompressor():
     c = 0
     t = 0.
     name = 'topk'
-
+    # logger.info("opening txt file to write compression time")
+    ftime = open("TopK_compression_time.txt", "a",  buffering=1)
     @staticmethod
     def clear():
         TopKCompressor.residuals = {}
@@ -43,7 +45,8 @@ class TopKCompressor():
     @staticmethod
     def compress(tensor, name=None, sigma_scale=2.5, ratio=0.05):
         # with tracking("COMPRESSION TIME"):
-            # start = time.time()
+        gpu_rank = rank()
+        start = time.time()
         with torch.no_grad():
             if name not in TopKCompressor.residuals:
                 TopKCompressor.residuals[name] = torch.zeros_like(tensor.data)
@@ -60,7 +63,8 @@ class TopKCompressor():
 
             TopKCompressor.values[name] = values
             TopKCompressor.indexes[name] = indexes
-            # logger.info(f"COMPRESSION TIME: {-start + time.time()}")
+            # with  open("TopK_compression_time.txt", "a",  buffering=1) as ftime:
+            TopKCompressor.ftime.write(f"[rank {gpu_rank}]\tCOMPRESSION TIME: {-start + time.time()} \n")
             return tensor, indexes, values
 
     @staticmethod
@@ -122,7 +126,7 @@ class GaussianCompressor():
     c = 0
     t = 0.
     name = 'gaussion'
-
+    ftime = open("globalTopK_compression_time.txt", "a",  buffering=1)
     @staticmethod
     def clear():
         GaussianCompressor.residuals = {}
@@ -133,6 +137,8 @@ class GaussianCompressor():
 
     @staticmethod
     def compress(tensor, name=None, sigma_scale=3, ratio=0.05):
+        gpu_rank = rank()
+        start = time.time()
         with torch.no_grad():
             if name not in GaussianCompressor.residuals:
                 GaussianCompressor.residuals[name] = torch.zeros_like(tensor.data)
@@ -163,6 +169,7 @@ class GaussianCompressor():
             #print('gaussion vs topk: ', indexes.numel(), k)
             GaussianCompressor.residuals[name].data = tensor.data + 0.0 
             GaussianCompressor.residuals[name].data[indexes] = 0.0
+            GaussianCompressor.ftime.write(f"[rank {gpu_rank}]\tCOMPRESSION TIME: {-start + time.time()} \n")
             return tensor, indexes, values
 
     @staticmethod
@@ -225,7 +232,7 @@ class RandomKCompressor():
     t = 0.
     name = 'randomk'
     counter = 0
-
+    ftime = open("randomK_compression_time.txt", "a",  buffering=1)
     @staticmethod
     def clear():
         RandomKCompressor.residuals = {}
@@ -236,6 +243,8 @@ class RandomKCompressor():
 
     @staticmethod
     def compress(tensor, name=None, sigma_scale=3, ratio=0.05):
+        gpu_rank = rank()
+        start = time.time()
         with torch.no_grad():
             if name not in RandomKCompressor.residuals:
                 RandomKCompressor.residuals[name] = torch.zeros_like(tensor.data)
@@ -249,6 +258,7 @@ class RandomKCompressor():
             values = tensor.data[indexes] 
             RandomKCompressor.residuals[name].data = tensor.data + 0.0 
             RandomKCompressor.residuals[name].data[indexes] = 0.0
+            RandomKCompressor.ftime.write(f"[rank {gpu_rank}]\tCOMPRESSION TIME: {-start + time.time()} \n")
             return tensor, indexes, values
 
     @staticmethod
