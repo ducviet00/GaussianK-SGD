@@ -9,18 +9,18 @@
 #$ -v SSH_PORT=2299
 
 DNN="${dnn:-resnet50}"
-lr="${lr:-0.01}"
+lr="${lr:-0.1}"
 batch_size="${batch_size:-64}"
 nworkers="${nworkers:-4}"
-density="${density:-0.001}"
-compressor="${compressor:-randomk}"
+density="${density:-0.01}"
+compressor="${compressor:-topk}"
 NUM_NODES=${NHOSTS}
 dataset="cifar10"
 nstepsupdate=1
 NUM_GPUS_PER_NODE=4
 #NUM_GPUS_PER_SOCKET=$(expr ${NUM_GPUS_PER_NODE} / 2)
 NUM_PROCS=$(expr ${NUM_NODES} \* ${NUM_GPUS_PER_NODE})
-EPOCH=5
+EPOCH=20
 
 LOG_DIR="./logs/G${NUM_PROCS}_E${EPOCH}"
 rm -r ${LOG_DIR}

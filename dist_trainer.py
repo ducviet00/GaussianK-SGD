@@ -3,10 +3,16 @@ from __future__ import print_function
 import time
 import torch
 import numpy as np
-import argparse, os
+import argparse
 import settings
 import utils
 import logging
+
+import os
+import shutil
+if os.path.isdir("/time_logs"):
+    shutil.rmtree('/time_logs')
+os.makedirs("./time_logs", exist_ok=True)
 
 from dl_trainer import DLTrainer, _support_datasets, _support_dnns
 import distributed_optimizer as hvd
@@ -24,6 +30,7 @@ tracking = Timer()
 
 def ssgd(dnn, dataset, data_dir, nworkers, lr, batch_size, nsteps_update, max_epochs, nwpernode, pretrain, num_steps, compressor, density, threshold, gradient_path=None, timer=tracking):
     rank = hvd.rank()
+    # torch.cuda.manual_seed(42)
     torch.cuda.set_device(rank%nwpernode)
     if rank != 0:
         pretrain = None
@@ -34,8 +41,12 @@ def ssgd(dnn, dataset, data_dir, nworkers, lr, batch_size, nsteps_update, max_ep
     trainer.set_train_epoch(int(hvd.broadcast(init_epoch, root_rank=0)[0]))
     trainer.set_train_iter(int(hvd.broadcast(init_iter, root_rank=0)[0]))
     is_sparse = density < 1
-    if not is_sparse:
+    if compressor == "structured":
+        is_sparse = False
+    if density >= 1:
         compressor = None
+    # if not is_sparse:
+    #     compressor = None
 
     if settings.ADAPTIVE_MERGE or settings.ADAPTIVE_SPARSE:
         seq_layernames, layerwise_times, layerwise_sizes = benchmark(trainer)
@@ -86,7 +97,12 @@ def ssgd(dnn, dataset, data_dir, nworkers, lr, batch_size, nsteps_update, max_ep
                     torch.nn.utils.clip_grad_norm_(trainer.net.parameters(), 400)
                 trainer.update_model()
         optimizer.increase_one_epoch()
-    print(tracking.summary())
+        print(tracking.summary())
+    with open("time_logs/SUMMARY.txt", "a") as f:
+        f.write(f"[Rank {rank}]:\n")
+        f.write(tracking.summary())
+        f.write("\n")
+    # print(tracking.summary())
 
 
 if __name__ == '__main__':
@@ -130,4 +146,5 @@ if __name__ == '__main__':
     hdlr.setFormatter(formatter)
     logger.addHandler(hdlr) 
     logger.info('Configurations: %s', args)
+    print("ARGS density:", args.density)
     ssgd(args.dnn, args.dataset, args.data_dir, args.nworkers, args.lr, args.batch_size, args.nsteps_update, args.max_epochs, args.nwpernode, args.pretrain, args.num_steps, args.compressor, args.density, args.threshold, gradient_relative_path)

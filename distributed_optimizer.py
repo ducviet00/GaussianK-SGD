@@ -23,6 +23,7 @@ from horovod.torch.mpi_ops import allgather_async
 from horovod.torch.mpi_ops import broadcast_async_
 from horovod.torch.mpi_ops import synchronize
 from horovod.torch.mpi_ops import size, local_size, rank, local_rank
+from horovod.torch.mpi_ops import Average, Adasum, Sum
 from horovod.torch.mpi_ops import init, broadcast
 
 import time
@@ -57,12 +58,12 @@ class _DistributedOptimizer(torch.optim.Optimizer):
         self._update_times = {} # allreduce times
         self.train_epoch = 0
         self.train_iter = 0
-        self._dynamic_densities = [0.015625, 0.004, 0.001]
+        self._dynamic_densities = None
         #self._dynamic_densities = [0.25, 0.0625, 0.015625, 0.004, 0.001] # the setting used in DGC
         #self._dynamic_densities = None 
         logger.info('_dynamic_densities: %s', self._dynamic_densities)
         self._selected_num_gradients = []
-
+        self.f = open("time_logs/SYNC TIME.txt", "a", buffering=1)
         if named_parameters is not None:
             named_parameters = list(named_parameters)
         else:
@@ -139,7 +140,7 @@ class _DistributedOptimizer(torch.optim.Optimizer):
             density = self.get_current_density()
             size = np.sum(self._sizes)
             k = max(int(size * density), 1)
-            logger.info('Average number of selected gradients: %f, exact k: %d', np.mean(self._selected_num_gradients), k)
+            logger.info(f'Average number of selected gradients: {np.mean(self._selected_num_gradients)}, exact k: {k}, size: {size}, density: {density}')
             # logger.info('The number of selected gradients: %s', self._selected_num_gradients)
         self._selected_num_gradients = []
 
@@ -409,10 +410,21 @@ class _DistributedOptimizer(torch.optim.Optimizer):
         handle = allreduce_async_(tensor_compressed, average=True, name=name)
         return handle, ctx
 
+    def _custom_allreduce_async(self, p, name, density):
+        tensor = p.data.view(-1)
+        tensor_compressed, ctx, selected_values = self._compression.compress(tensor, name, ratio=density, iteration=self.train_iter)
+        self._selected_num_gradients.append(int(selected_values.numel()))
+        if settings.LOGGING_GRADIENTS and rank() == 0:
+            grads = tensor.cpu().numpy()
+            np.save('%s/r%d_gradients_iter_%d' % (self._gradient_path, rank(), self.train_iter), grads)
+        handle = allreduce_async_(selected_values, average=True, name=name)
+        return handle, ctx
+
     def _sparse_allreduce_async(self, p, name, density):
         stime = time.time()
+        # print("tensor before compression:", p.data.size())
         tensor = p.data.view(-1)
-        tensor_compressed, ctx, selected_values = self._compression.compress(tensor, name, ratio=density, rank=rank())
+        tensor_compressed, ctx, selected_values = self._compression.compress(tensor, name, ratio=density)
         self._selected_num_gradients.append(int(ctx.numel()))
 
         if settings.LOGGING_GRADIENTS and rank() == 0:
@@ -425,10 +437,16 @@ class _DistributedOptimizer(torch.optim.Optimizer):
             utils.force_insert_item(self._compression_timers, name, time.time()-stime)
         return (handle, handle_idx), ctx 
 
+    def _cuda_sync(self):
+        """Finish all asynchronous GPU computations to get correct timings"""
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
     def _make_hook(self, p):
         def hook(*ignore):
             assert p not in self._handles
             assert not p.grad.requires_grad
+            # self._cuda_sync()
+            # synctime = time.time()
             if not self.local:
                 name = self._parameter_names.get(p)
                 new_name, new_tensor = self._push_to_buffer(name, p.grad.data)
@@ -437,9 +455,15 @@ class _DistributedOptimizer(torch.optim.Optimizer):
                     if self._sparse and density < 1:
                         handle, ctx = self._sparse_allreduce_async(new_tensor, new_name, density)
                         self._handles[new_tensor] = (handle, ctx, density)
+                    elif density < 1 and self.train_iter % 2:
+                        handle, ctx = self._custom_allreduce_async(new_tensor, new_name, density)
+                        self._handles[new_tensor] = (handle, ctx, density)
                     else:
                         handle, ctx = self._allreduce_grad_async(new_tensor, new_name)
                         self._handles[new_tensor] = (handle, ctx, 1)
+            # self._cuda_sync()
+            # synctime = time.time() - synctime
+            # self.f.write(f"[rank: {rank()}][epoch: {self.train_epoch}][iter: {self.train_iter}] SYNC TIME: {synctime}\n")
         return hook
 
     def synchronize(self):
@@ -455,6 +479,8 @@ class _DistributedOptimizer(torch.optim.Optimizer):
                 if type(handle) is tuple:
                     handle, handle_idx = handle[0], handle[1]
                 output = synchronize(handle)
+                # print("OUTPUT sparse size: ", output.size())
+
                 if handle_idx is not None:
                     all_indexes = synchronize(handle_idx)
 
@@ -479,9 +505,32 @@ class _DistributedOptimizer(torch.optim.Optimizer):
 
                 if self._profiling:
                     utils.force_insert_item(self._update_times, name, time.time()-stime)
+            # new method
+            elif density < 1 and self.train_iter % 2:
+                stime = time.time()
+                start_idx = None
+                end_idx = None
+                assert type(handle) is not tuple
+                assert type(ctx) is tuple
+                start_idx, end_idx = ctx[0], ctx[1]
+                new_grad = p.data.view(-1)
+                output = synchronize(handle)
+                # print(f"[rank: {rank()}][epoch: {self.train_epoch}][iter: {self.train_iter}] BEFORE:", torch.sum(new_grad[start_idx:end_idx]))       
+                # print("OUTPUT dense size: ", output.size())         
+                if self._profiling:
+                    utils.force_insert_item(self._allreduce_timers, name, time.time()-stime)
+                stime = time.time()
+                new_grad.fill_(0.0)
+                new_grad[start_idx:end_idx] = output
+                # print(f"[rank: {rank()}][epoch: {self.train_epoch}][iter: {self.train_iter} AFTER:", torch.sum(new_grad[start_idx:end_idx]))       
+                # print(f"[rank: {rank()}][epoch: {self.train_epoch}][iter: {self.train_iter} AFTER:", torch.sum(p.data[start_idx:end_idx]))       
+                if self._profiling:
+                    utils.force_insert_item(self._update_times, name, time.time()-stime)
             else:
+                # print("SYNC ALL")
                 stime = time.time()
                 output = synchronize(handle)
+                # print("OUTPUT dense size: ", output.size())
                 if self._profiling:
                     utils.force_insert_item(self._allreduce_timers, name, time.time()-stime)
                 stime = time.time()
@@ -498,6 +547,7 @@ class _DistributedOptimizer(torch.optim.Optimizer):
                 p.set_(output)
                 if self._profiling:
                     utils.force_insert_item(self._update_times, name, time.time()-stime)
+                    
         if len(self._groups) != len(self._sequential_keys):
             for merged_p, value in self._handles.items():
                 new_name = self._merged_parameter_names.get(merged_p)
@@ -533,7 +583,10 @@ class _DistributedOptimizer(torch.optim.Optimizer):
 
     def step(self, closure=None):
         if not self.local:
+            synctime = time.time()
             self.synchronize()
+            synctime = time.time() - synctime
+            self.f.write(f"[rank: {rank()}][epoch: {self.train_epoch}][iter: {self.train_iter}] SYNC TIME: {synctime}\n")
         return super(self.__class__, self).step(closure)
 
 

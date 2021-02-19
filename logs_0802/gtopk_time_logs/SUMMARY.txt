@@ -1,0 +1,216 @@
+[Rank 2]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02652s |  10.5%
+- Forward time                   |    639 |     0.01090s |   4.3%
+- Iteration time                 |    639 |     0.25257s | 100.0%
+- Optimizer step                 |    639 |     0.20477s |  81.1%
+-----------------------------------------------------------------
+
+[Rank 1]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02666s |  10.6%
+- Forward time                   |    639 |     0.01061s |   4.2%
+- Iteration time                 |    639 |     0.25258s | 100.0%
+- Optimizer step                 |    639 |     0.20639s |  81.7%
+-----------------------------------------------------------------
+
+[Rank 4]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02525s |  10.0%
+- Forward time                   |    639 |     0.01091s |   4.3%
+- Iteration time                 |    639 |     0.25257s | 100.0%
+- Optimizer step                 |    639 |     0.20685s |  81.9%
+-----------------------------------------------------------------
+
+[Rank 23]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02426s |   9.6%
+- Forward time                   |    639 |     0.01096s |   4.3%
+- Iteration time                 |    639 |     0.25257s | 100.0%
+- Optimizer step                 |    639 |     0.20833s |  82.5%
+-----------------------------------------------------------------
+
+[Rank 6]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02583s |  10.2%
+- Forward time                   |    639 |     0.01081s |   4.3%
+- Iteration time                 |    639 |     0.25256s | 100.0%
+- Optimizer step                 |    639 |     0.20659s |  81.8%
+-----------------------------------------------------------------
+
+[Rank 0]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02539s |  10.1%
+- Forward time                   |    639 |     0.01048s |   4.2%
+- Iteration time                 |    639 |     0.25254s | 100.0%
+- Optimizer step                 |    639 |     0.14026s |  55.5%
+-----------------------------------------------------------------
+
+[Rank 13]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02547s |  10.1%
+- Forward time                   |    639 |     0.01077s |   4.3%
+- Iteration time                 |    639 |     0.25257s | 100.0%
+- Optimizer step                 |    639 |     0.20763s |  82.2%
+-----------------------------------------------------------------
+
+[Rank 5]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02474s |   9.8%
+- Forward time                   |    639 |     0.01053s |   4.2%
+- Iteration time                 |    639 |     0.25257s | 100.0%
+- Optimizer step                 |    639 |     0.20824s |  82.5%
+-----------------------------------------------------------------
+
+[Rank 21]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02689s |  10.7%
+- Forward time                   |    639 |     0.01055s |   4.2%
+- Iteration time                 |    639 |     0.25259s | 100.0%
+- Optimizer step                 |    639 |     0.20613s |  81.6%
+-----------------------------------------------------------------
+
+[Rank 8]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02624s |  10.4%
+- Forward time                   |    639 |     0.01092s |   4.3%
+- Iteration time                 |    639 |     0.25255s | 100.0%
+- Optimizer step                 |    639 |     0.20605s |  81.6%
+-----------------------------------------------------------------
+
+[Rank 3]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02434s |   9.6%
+- Forward time                   |    639 |     0.01066s |   4.2%
+- Iteration time                 |    639 |     0.25257s | 100.0%
+- Optimizer step                 |    639 |     0.20878s |  82.7%
+-----------------------------------------------------------------
+
+[Rank 14]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02556s |  10.1%
+- Forward time                   |    639 |     0.01099s |   4.4%
+- Iteration time                 |    639 |     0.25256s | 100.0%
+- Optimizer step                 |    639 |     0.20712s |  82.0%
+-----------------------------------------------------------------
+
+[Rank 7]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02505s |   9.9%
+- Forward time                   |    639 |     0.01059s |   4.2%
+- Iteration time                 |    639 |     0.25256s | 100.0%
+- Optimizer step                 |    639 |     0.20789s |  82.3%
+-----------------------------------------------------------------
+
+[Rank 16]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02533s |  10.0%
+- Forward time                   |    639 |     0.01104s |   4.4%
+- Iteration time                 |    639 |     0.25256s | 100.0%
+- Optimizer step                 |    639 |     0.20689s |  81.9%
+-----------------------------------------------------------------
+
+[Rank 22]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02610s |  10.3%
+- Forward time                   |    639 |     0.01144s |   4.5%
+- Iteration time                 |    639 |     0.25257s | 100.0%
+- Optimizer step                 |    639 |     0.20549s |  81.4%
+-----------------------------------------------------------------
+
+[Rank 11]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02505s |   9.9%
+- Forward time                   |    639 |     0.01023s |   4.1%
+- Iteration time                 |    639 |     0.25258s | 100.0%
+- Optimizer step                 |    639 |     0.20832s |  82.5%
+-----------------------------------------------------------------
+
+[Rank 15]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02424s |   9.6%
+- Forward time                   |    639 |     0.01079s |   4.3%
+- Iteration time                 |    639 |     0.25260s | 100.0%
+- Optimizer step                 |    639 |     0.20861s |  82.6%
+-----------------------------------------------------------------
+
+[Rank 19]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02523s |  10.0%
+- Forward time                   |    639 |     0.01042s |   4.1%
+- Iteration time                 |    639 |     0.25260s | 100.0%
+- Optimizer step                 |    639 |     0.20800s |  82.4%
+-----------------------------------------------------------------
+
+[Rank 20]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02582s |  10.2%
+- Forward time                   |    639 |     0.01122s |   4.4%
+- Iteration time                 |    639 |     0.25257s | 100.0%
+- Optimizer step                 |    639 |     0.20605s |  81.6%
+-----------------------------------------------------------------
+
+[Rank 9]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02526s |  10.0%
+- Forward time                   |    639 |     0.01072s |   4.3%
+- Iteration time                 |    639 |     0.25260s | 100.0%
+- Optimizer step                 |    639 |     0.20761s |  82.2%
+-----------------------------------------------------------------
+
+[Rank 12]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02495s |   9.9%
+- Forward time                   |    639 |     0.01084s |   4.3%
+- Iteration time                 |    639 |     0.25258s | 100.0%
+- Optimizer step                 |    639 |     0.20795s |  82.3%
+-----------------------------------------------------------------
+
+[Rank 17]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02494s |   9.9%
+- Forward time                   |    639 |     0.01058s |   4.2%
+- Iteration time                 |    639 |     0.25259s | 100.0%
+- Optimizer step                 |    639 |     0.20815s |  82.4%
+-----------------------------------------------------------------
+
+[Rank 10]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02551s |  10.1%
+- Forward time                   |    639 |     0.01117s |   4.4%
+- Iteration time                 |    639 |     0.25258s | 100.0%
+- Optimizer step                 |    639 |     0.20636s |  81.7%
+-----------------------------------------------------------------
+
+[Rank 18]:
+--- Timer summary -----------------------------------------------
+  Event                          |  Count | Average time |  Frac.
+- Backward time                  |    639 |     0.02607s |  10.3%
+- Forward time                   |    639 |     0.01106s |   4.4%
+- Iteration time                 |    639 |     0.25258s | 100.0%
+- Optimizer step                 |    639 |     0.20603s |  81.6%
+-----------------------------------------------------------------
+

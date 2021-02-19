@@ -661,20 +661,20 @@ class DLTrainer:
                 self.avg_loss_per_epoch = 0.0
 
                 # Save checkpoint
-                if self.train_iter > 0 and self.rank == 0:
-                    state = {'iter': self.train_iter, 'epoch': self.train_epoch, 'state': self.get_model_state()}
-                    if self.prefix:
-                        relative_path = './weights/%s/%s-n%d-bs%d-lr%.4f' % (self.prefix, self.dnn, self.nworkers, self.batch_size, self.base_lr)
-                    else:
-                        relative_path = './weights/%s-n%d-bs%d-lr%.4f' % (self.dnn, self.nworkers, self.batch_size, self.base_lr)
-                    utils.create_path(relative_path)
-                    filename = '%s-rank%d-epoch%d.pth'%(self.dnn, self.rank, self.train_epoch)
-                    fn = os.path.join(relative_path, filename)
-                    if self.train_epoch % 2== 0:
-                        self.save_checkpoint(state, fn)
-                        self.remove_dict(state)
-                if self.train_sampler and (self.nworkers > 1):
-                    self.train_sampler.set_epoch(self.train_epoch)
+                # if self.train_iter > 0 and self.rank == 0:
+                #     state = {'iter': self.train_iter, 'epoch': self.train_epoch, 'state': self.get_model_state()}
+                #     if self.prefix:
+                #         relative_path = './weights/%s/%s-n%d-bs%d-lr%.4f' % (self.prefix, self.dnn, self.nworkers, self.batch_size, self.base_lr)
+                #     else:
+                #         relative_path = './weights/%s-n%d-bs%d-lr%.4f' % (self.dnn, self.nworkers, self.batch_size, self.base_lr)
+                #     utils.create_path(relative_path)
+                #     filename = '%s-rank%d-epoch%d.pth'%(self.dnn, self.rank, self.train_epoch)
+                #     fn = os.path.join(relative_path, filename)
+                #     if self.train_epoch % 2== 0:
+                #         self.save_checkpoint(state, fn)
+                #         self.remove_dict(state)
+                # if self.train_sampler and (self.nworkers > 1):
+                #     self.train_sampler.set_epoch(self.train_epoch)
 
             ss = time.time()
             if data is None:
@@ -834,7 +834,7 @@ class DLTrainer:
             acc = wer
             acc5 = 0.0
         loss = float(test_loss)/total
-        print(self.tracking.summary())
+        
         logger.info('Epoch %d, lr: %f, val loss: %f, val top-1 acc: %f, top-5 acc: %f' % (epoch, self.lr, test_loss, acc, acc5))
         self.net.train()
         return acc

@@ -20,6 +20,104 @@ class NoneCompressor():
         return z 
 
 
+class StructuredCompressor():
+    """
+    A novel method
+    """
+    residuals = {}
+    sparsities = []
+    values = {} 
+    indexes = {}
+    seed = 42
+    c = 0
+    # torch.manual_seed(42)
+    t = 0.
+    name = 'structured'
+    # logger.info("opening txt file to write compression time")
+    ftime = open("time_logs/Structured_compression_time.txt", "a",  buffering=1)
+    
+    @staticmethod
+    def compress(tensor, name=None, sigma_scale=2.5, ratio=0.05, iteration=None):
+        # with tracking("COMPRESSION TIME"):
+        assert iteration is not None, print("NO ITERATION ??")
+        gpu_rank = rank()
+        start = time.time()
+        with torch.no_grad():
+            # print("tensor before compression:", tensor.size())
+            if name not in StructuredCompressor.residuals:
+                StructuredCompressor.residuals[name] = torch.zeros_like(tensor.data)
+            # block solution
+            numel = tensor.numel()
+            k = max(int(numel * ratio), 1)
+            idx = iteration % (numel // k + 1)
+            # idx = int(torch.randint(0, numel-k, (1,)))
+
+            tensor.data.add_(StructuredCompressor.residuals[name].data)
+            # print(f"[rank {gpu_rank}] iter: {iteration} idx: {idx}")
+            values = tensor[idx*k:(idx+1)*k].clone()
+            # values = tensor[idx:idx+k].clone()
+            StructuredCompressor.residuals[name].data = tensor.data + 0.0
+            StructuredCompressor.residuals[name].data[idx*k:(idx+1)*k] = 0. 
+            # StructuredCompressor.residuals[name].data[idx:idx+k] = 0. 
+            # logger.info(f"[rank {gpu_rank}][random {idx}][iteration {iteration}]")
+            StructuredCompressor.ftime.write(f"[rank {gpu_rank}][random {idx}]\tCOMPRESSION TIME: {-start + time.time()} \n")
+            return tensor, (idx*k, (idx+1)*k), values
+            # return tensor, (idx, idx+k), values
+            # return tensor, (0, numel), tensor.clone()
+
+    @staticmethod
+    def decompress(tensor, ctc, name=None):
+        z = tensor 
+        return z 
+
+class RandomBlockCompressor():
+    """
+    A novel method
+    """
+    residuals = {}
+    sparsities = []
+    values = {} 
+    indexes = {}
+    seed = 42
+    c = 0
+    t = 0.
+    name = 'randomblock'
+    # logger.info("opening txt file to write compression time")
+    ftime = open("time_logs/randomblock_compression_time.txt", "a",  buffering=1)
+    
+    @staticmethod
+    def compress(tensor, name=None, sigma_scale=2.5, ratio=0.05, iteration=None):
+        # with tracking("COMPRESSION TIME"):
+        assert iteration is not None, print("NO ITERATION ??")
+        gpu_rank = rank()
+        start = time.time()
+        with torch.no_grad():
+            # print("tensor before compression:", tensor.size())
+            if name not in RandomBlockCompressor.residuals:
+                RandomBlockCompressor.residuals[name] = torch.zeros_like(tensor.data)
+            # block solution
+            numel = tensor.numel()
+            k = max(int(numel * ratio), 1)
+            # idx = iteration % (numel // k + 1)
+            # torch.manual_seed(RandomBlockCompressor.seed)
+            idx = int(torch.randint(0, numel-k, (1,)))
+            print(idx)
+            tensor.data.add_(RandomBlockCompressor.residuals[name].data)
+            # print(f"[rank {gpu_rank}] iter: {iteration} idx: {idx}")
+            values = tensor[idx*k:(idx+1)*k].clone()
+            # values = tensor[idx*k:(idx+1)*k]
+            RandomBlockCompressor.residuals[name].data = tensor.data + 0.0
+            RandomBlockCompressor.residuals[name].data[idx*k:(idx+1)*k] = 0. 
+
+            RandomBlockCompressor.ftime.write(f"[rank {gpu_rank}]\tCOMPRESSION TIME: {-start + time.time()} \n")
+            return tensor, (idx*k, (idx+1)*k), values
+            # return tensor, (0, numel), tensor.clone()
+
+    @staticmethod
+    def decompress(tensor, ctc, name=None):
+        z = tensor 
+        return z 
+
 class TopKCompressor():
     """
     Sparse Communication for Distributed Gradient Descent, Alham Fikri Aji et al., 2017
@@ -33,7 +131,7 @@ class TopKCompressor():
     t = 0.
     name = 'topk'
     # logger.info("opening txt file to write compression time")
-    ftime = open("TopK_compression_time.txt", "a",  buffering=1)
+    ftime = open("time_logs/TopK_compression_time.txt", "a",  buffering=1)
     @staticmethod
     def clear():
         TopKCompressor.residuals = {}
@@ -48,6 +146,7 @@ class TopKCompressor():
         gpu_rank = rank()
         start = time.time()
         with torch.no_grad():
+            # print("tensor before compression:", tensor.size())
             if name not in TopKCompressor.residuals:
                 TopKCompressor.residuals[name] = torch.zeros_like(tensor.data)
             # top-k solution
@@ -126,7 +225,7 @@ class GaussianCompressor():
     c = 0
     t = 0.
     name = 'gaussion'
-    ftime = open("globalTopK_compression_time.txt", "a",  buffering=1)
+    ftime = open("time_logs/globalTopK_compression_time.txt", "a",  buffering=1)
     @staticmethod
     def clear():
         GaussianCompressor.residuals = {}
@@ -232,7 +331,7 @@ class RandomKCompressor():
     t = 0.
     name = 'randomk'
     counter = 0
-    ftime = open("randomK_compression_time.txt", "a",  buffering=1)
+    ftime = open("time_logs/randomK_compression_time.txt", "a",  buffering=1)
     @staticmethod
     def clear():
         RandomKCompressor.residuals = {}
@@ -526,6 +625,8 @@ class RedSyncTrimCompressor(RedSyncCompressor):
 
 
 compressors = {
+        'structured': StructuredCompressor,
+        'randomblock': RandomBlockCompressor,
         'topk': TopKCompressor,
         'topk2': TopKCompressor2,
         'gaussian': GaussianCompressor,
